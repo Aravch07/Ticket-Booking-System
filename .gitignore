@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.vercel/
+.env*
+!.env.example
+DEMO_CREDENTIALS.md
+test-results/
+*.log
+
+.env*

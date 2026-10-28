@@ -1,0 +1,8 @@
+.env*
+DEMO_CREDENTIALS.md
+.agents
+tests
+test-results
+node_modules
+.next
+*.log
