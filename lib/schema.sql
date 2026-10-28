@@ -16,6 +16,13 @@ CREATE TABLE IF NOT EXISTS classes (
  name text NOT NULL, price integer NOT NULL CHECK (price > 0), details jsonb NOT NULL,
  PRIMARY KEY (event_id,id)
 );
+CREATE TABLE IF NOT EXISTS launch_entries (
+ event_id text NOT NULL REFERENCES events(id), user_id uuid NOT NULL REFERENCES users(id),
+ queue_number integer NOT NULL CHECK(queue_number > 0),
+ created_at timestamptz NOT NULL DEFAULT now(), admitted_at timestamptz,
+ PRIMARY KEY(event_id,user_id), UNIQUE(event_id,queue_number)
+);
+CREATE INDEX IF NOT EXISTS launch_fifo ON launch_entries(event_id,queue_number) WHERE admitted_at IS NULL;
 CREATE TABLE IF NOT EXISTS holds (
  id uuid PRIMARY KEY, event_id text NOT NULL REFERENCES events(id), user_id uuid NOT NULL REFERENCES users(id),
  class_id text NOT NULL, mode text NOT NULL CHECK (mode IN ('manual','auto')),

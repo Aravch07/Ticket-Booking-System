@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
     "db:setup": "node --env-file=.env.local scripts/setup-db.mjs",
-    "test": "node --env-file=.env.local --test tests/*.test.mjs"
+    "test": "node --env-file=.env.local --test --test-concurrency=1 tests/*.test.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.10.4",

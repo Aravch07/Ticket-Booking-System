@@ -279,7 +279,7 @@ export default function Home() {
                       event.available === 0 ? "pill-waitlist" : "pill-dark"
                     }
                   >
-                    {event.available === 0
+                    {event.launchPending ? 'SCHEDULED DROP' : event.available === 0
                       ? "WAITLIST OPEN"
                       : (event.category || "Live show").toUpperCase()}
                   </Pill>
@@ -332,7 +332,7 @@ export default function Home() {
                       }
                     >
                       <i />
-                      {event.available === 0
+                      {event.launchPending ? 'View ticket release' : event.available === 0
                         ? "Join the waiting room"
                         : "Tickets available"}
                     </span>

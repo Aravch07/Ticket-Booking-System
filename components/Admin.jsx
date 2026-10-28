@@ -463,7 +463,7 @@ export default function Admin() {
                           <td>{e.held}</td>
                           <td>{e.booked}</td>
                           <td>{e.reserved}</td>
-                          <td>{e.waiting}</td>
+                          <td title={`${e.launch_waiting} launch queue · ${e.waiting} class queue`}>{e.waiting + e.launch_waiting}</td>
                           <td>{money(e.revenue)}</td>
                           <td>
                             <button
@@ -592,6 +592,13 @@ export default function Admin() {
               </section>
               {event ? (
                 <>
+                  {event.launch?.salesOpenAt && <section className="dashboard-panel launch-admin-summary">
+                    <Eyebrow>TICKET RELEASE · {event.launch.phase.replaceAll('_', ' ').toUpperCase()}</Eyebrow>
+                    <h3>{fullDate(event.launch.salesOpenAt)} · {timeLabel(event.launch.salesOpenAt)} IST</h3>
+                    <p>Waiting room: {fullDate(event.launch.waitingRoomAt)} · {timeLabel(event.launch.waitingRoomAt)} IST</p>
+                    <div className="launch-rules"><span>{selectedStats?.launch_waiting || 0} waiting for launch</span><span>{selectedStats?.launch_admitted || 0} admitted to booking</span><span>{selectedStats?.waiting || 0} waiting for class capacity</span></div>
+                    <p className="small-note">Up to 100 fans enter every 5 minutes. {event.launch.phase === 'scheduled' ? 'Waiting room has not opened yet.' : event.launch.nextBatchAt ? `Next batch: ${timeLabel(event.launch.nextBatchAt)} IST.` : 'The launch queue has cleared; public booking is open.'}</p>
+                  </section>}
                   <div className="inventory-class-grid">
                     {event.classes.map((c) => (
                       <article className="dashboard-panel" key={c.id}>
@@ -828,7 +835,7 @@ export default function Admin() {
             await load();
             setEventId(id);
             setTab("inventory");
-            notify("Your event is live and ready for bookings.");
+            notify("Your event is published. Tickets follow the release schedule you chose.");
           }}
         />
       )}
@@ -1161,6 +1168,8 @@ function CreateEventModal({ onClose, onCreated }) {
       basePrice: 799,
       description: "",
       bannerTemplate: 'bloom',
+      releaseMode: 'now',
+      salesOpenAt: '',
     }),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -1173,6 +1182,7 @@ function CreateEventModal({ onClose, onCreated }) {
       const d = await api("/admin/events", {
         ...form,
         date: new Date(form.date).toISOString(),
+        salesOpenAt: form.releaseMode === 'scheduled' ? new Date(form.salesOpenAt).toISOString() : null,
       });
       await onCreated(d.id);
     } catch (e) {
@@ -1260,6 +1270,22 @@ function CreateEventModal({ onClose, onCreated }) {
               onChange={(e) => update("basePrice", e.target.value)}
             />
           </label>
+        </div>
+        <div className="release-settings">
+          <label>
+            TICKET RELEASE
+            <select value={form.releaseMode} onChange={e => update('releaseMode', e.target.value)}>
+              <option value="now">Open booking immediately</option>
+              <option value="scheduled">Schedule a ticket drop</option>
+            </select>
+          </label>
+          {form.releaseMode === 'scheduled' && <>
+            <label>
+              TICKETS GO LIVE (YOUR TIMEZONE)
+              <input type="datetime-local" required value={form.salesOpenAt} max={form.date || undefined} onChange={e => update('salesOpenAt', e.target.value)} />
+            </label>
+            <p className="small-note">The event is published now. Its waiting room opens 30 minutes before this ticket release. Fans receive queue numbers and enter booking in batches of up to 100 every 5 minutes. Once the launch queue clears, booking opens to everyone.</p>
+          </>}
         </div>
         <label>
           ABOUT THE EXPERIENCE

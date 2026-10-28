@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import LaunchRoom from './LaunchRoom.jsx';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -63,6 +64,7 @@ export default function Booking({ id }) {
     mounted = useRef(true),
     activeId = useRef(id),
     pollPending = useRef(false);
+  const launchJoining = useRef(false), lastLaunch = useRef(null);
   activeId.current = id;
   const apply = useCallback((next) => {
     if (!mounted.current || next.id !== activeId.current) return;
@@ -165,6 +167,10 @@ export default function Booking({ id }) {
         80,
       );
   };
+  const joinLaunch = async () => {
+    if (!user) return navigate('/login?next=' + encodeURIComponent('/event/' + id));
+    return perform('launch', {}, 'launch');
+  };
   const pick = async (seat) => {
     if (
       !user ||
@@ -227,6 +233,18 @@ export default function Booking({ id }) {
       paying.current = false;
     }
   };
+  useEffect(() => {
+    const launch = data?.launch;
+    if (!user || !launch || launch.canBook || launch.phase === 'scheduled' || launch.entry) return;
+    const key = id + ':' + user.id;
+    if (launchJoining.current || lastLaunch.current === key) return;
+    lastLaunch.current = key;
+    launchJoining.current = true;
+    setBusy('launch');
+    api('/events/' + id + '/launch', {}).then(apply)
+      .catch(e => notify(e.message, 'error'))
+      .finally(() => { launchJoining.current = false; setBusy(''); });
+  }, [id, user?.id, data?.launch?.phase, data?.launch?.entry?.queueNumber, apply, notify]);
   if (error && !data)
     return (
       <div className="page-width standard-page">
@@ -257,6 +275,7 @@ export default function Booking({ id }) {
     total = selected.length * cls.price;
   const activeClass = queue?.classId || chosen;
   const showBooking = admitted || !!hold;
+  const launchBlocked = data.launch && !data.launch.canBook;
   return (
     <div className="event-page page-width">
       <button className="back-link" onClick={() => navigate("/")}>
@@ -312,7 +331,9 @@ export default function Booking({ id }) {
           {pollError || "LIVE AVAILABILITY"}
         </div>
       </div>
-      <div className="booking-layout">
+      {launchBlocked && <LaunchRoom launch={data.launch} serverTime={data.serverTime} user={user} busy={!!busy} onJoin={joinLaunch} pollError={pollError} />}
+      {!launchBlocked && data.launch?.entry?.admittedAt && <div className="launch-admitted"><CheckCircle2 size={20} /><span><strong>You’re in! Queue #{data.launch.entry.queueNumber} has been admitted.</strong> Choose a class below. Seats are only reserved after selection.</span></div>}
+      {!launchBlocked && <div className="booking-layout">
         <div className="booking-main">
           <section className="class-section">
             <div className="section-heading compact">
@@ -962,6 +983,7 @@ export default function Booking({ id }) {
           )}
         </aside>
       </div>
+      }
       {checkoutOpen && hold && (
         <Modal
           title="Make it official."
@@ -1074,7 +1096,7 @@ export default function Booking({ id }) {
           </div>
         </Modal>
       )}
-      {!waiting && !confirmed && (
+      {!launchBlocked && !waiting && !confirmed && (
         <div className="mobile-booking-bar">
           <div>
             <span>

@@ -171,6 +171,26 @@ Open `http://localhost:3000`. For a production build, use `npm run build` follow
 
 The six initial events, names, lineups, and allocations are fictional demo content. Initial allocations are organiser reservations, not fabricated sales or traffic. Photography is sourced from Unsplash.
 
+## Scheduled ticket drops
+
+![Scheduled ticket launch waiting room](docs/images/launch-room.png)
+
+In **Admin → Create event → Ticket release**, choose immediate booking or **Schedule a ticket drop**. Set the ticket-sale date/time separately from the show date. The browser converts your local timezone to UTC; public release labels show IST. The event is published immediately, while booking stays locked until its release.
+
+| Stage | What fans experience |
+| --- | --- |
+| More than 30 minutes before sales | Published event with the waiting-room opening time and countdown. No queue joins or booking allowed. |
+| Final 30 minutes before sales | Signed-in visitors automatically join the event-wide launch queue. Each account gets a permanent FIFO queue number and a live count of fans ahead. |
+| Ticket release | The first 100 queued accounts can enter booking. |
+| Subsequent five-minute slots | Up to 100 more queued accounts enter in FIFO order. New arrivals join the back while the launch queue remains active. |
+| Launch waitlist reaches zero | Normal booking opens to everyone immediately. Existing class-capacity queues still apply. |
+
+Launch admission is **permission to book, not a seat reservation**. After admission, customers choose class/quantity and use the existing capacity checks and five-minute seat holds. Refreshes, duplicate requests, and extra tabs keep the same account's queue number. An admitted account retains access while later batches wait.
+
+The event row lock serialises joins and batch releases across Vercel instances. `launch_entries` stores a unique event/account entry and event-local queue number; release metadata persists in event details. Server/database time controls release, and polls or other event operations advance due batches. No persistent background process is required. With no requests, there is no active browser to admit: the next request processes the current slot, without accumulating missed batches into a large burst. An empty launch queue at opening switches directly to public booking.
+
+To demonstrate: create a show in the future with sales opening a few minutes from now; open it in separate signed-in accounts, observe queue numbers and countdown, then watch access open at the release. The automated launch tests use over 200 isolated queue entries and advance test fixture timestamps to verify multiple batches without waiting in real time. They also cover bypass attempts, retry stability, final partial batches, and unchanged immediate-release events.
+
 ## Booking rules
 
 | Rule             | Behaviour                                                                                                                                            |
