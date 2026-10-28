@@ -6282,3 +6282,8 @@ svg {
     transition: none !important;
   }
 }
+.banner-template-preview{position:relative;height:170px;overflow:hidden;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+.banner-template-preview>img{width:100%;height:100%;object-fit:cover}
+.banner-template-preview>div{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;background:linear-gradient(transparent,#10110fed)}
+.banner-template-preview span{font-size:9px;letter-spacing:1.5px;color:var(--lime)}
+.banner-template-preview strong{font-family:var(--heading);font-size:25px;line-height:1.15;margin-top:6px;overflow-wrap:anywhere}

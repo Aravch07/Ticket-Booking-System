@@ -1,4 +1,5 @@
 "use client";
+import { bannerTemplates, resolveBanner } from '../lib/banners.js';
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   ResponsiveContainer,
@@ -1159,6 +1160,7 @@ function CreateEventModal({ onClose, onCreated }) {
       category: "Live music",
       basePrice: 799,
       description: "",
+      bannerTemplate: 'bloom',
     }),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -1182,6 +1184,16 @@ function CreateEventModal({ onClose, onCreated }) {
   return (
     <Modal title="Put a new night on the map." onClose={onClose}>
       <form className="create-event-form" onSubmit={submit}>
+        <label>
+          EVENT BANNER TEMPLATE
+          <select value={form.bannerTemplate} onChange={e => update('bannerTemplate', e.target.value)}>
+            {bannerTemplates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}
+          </select>
+        </label>
+        <div className="banner-template-preview">
+          <img src={resolveBanner(form.bannerTemplate).image} alt="Selected event banner preview" />
+          <div><span>BANNER PREVIEW</span><strong>{form.title || 'Your next great night'}</strong></div>
+        </div>
         <label>
           EVENT NAME
           <input

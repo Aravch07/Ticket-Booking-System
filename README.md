@@ -1,8 +1,136 @@
 # SeatWise
 
-**Live website:** [seatwise-gamma.vercel.app](https://seatwise-gamma.vercel.app)
+### Good nights start here. Fair booking makes them possible.
 
-A live concert and show booking platform built with Next.js, React, and hosted PostgreSQL on Neon. The same shared database serves local development and the Vercel deployment; reservations are never stored in browser local storage or instance memory.
+[**Open the live demo →**](https://seatwise-gamma.vercel.app) · [Booking rules](#booking-rules) · [Run locally](#run-locally) · [Tests](#tests)
+
+A full-stack concert and live-show ticketing platform with class-specific waiting rooms, atomic seat reservations, wallet checkout, and single-use QR entry. Built to demonstrate what happens when multiple fans try to book the same limited inventory.
+
+> **Demo money, real state transitions.** Events and funds are simulated; accounts, queues, seat holds, payments, refunds, and gate scans are stored in hosted PostgreSQL. Local development currently shares the live database.
+
+![SeatWise discovery page](docs/images/discovery.jpg)
+
+## Explore the product
+
+| For fans | For organisers |
+| --- | --- |
+| Discover concerts, comedy, theatre, and live music | Publish events with a choice of six banner templates |
+| Choose VIP, Gold, or Silver and request 1–4 tickets | Monitor signups, traffic, sales, queues, and check-ins |
+| Enter a class-specific FIFO queue when capacity is full | Reserve seats for guest lists and release allocations |
+| Select seats manually or lock a random auto-pick | Inspect occupancy and traffic graphs for each event |
+| Complete mock wallet checkout and retrieve QR tickets | Verify QR codes by camera, image upload, or pasted code |
+| Cancel eligible bookings for a wallet refund | Review suspicious booking patterns with clear reasons |
+
+## Screens and walkthrough
+
+<details open>
+<summary><strong>Interactive stadium and seat holds</strong></summary>
+
+![Interactive stadium seat map](docs/images/stadium.jpg)
+
+Choose a class, enter booking, and click a seat. A five-minute server-side hold begins on the first selection. Another account sees that seat as unavailable. Auto-pick claims random available seats in the chosen class and locks the selection for checkout.
+</details>
+
+<details>
+<summary><strong>Class-specific waiting room</strong></summary>
+
+![Class-specific waiting room](docs/images/waiting-room.jpg)
+
+Full VIP inventory sends VIP buyers into its own queue. Other classes can still admit customers. Releasing enough capacity promotes the oldest eligible request in that class. Refreshing preserves queue position and never extends admission or hold deadlines.
+</details>
+
+<details>
+<summary><strong>Organiser analytics and seat control</strong></summary>
+
+![Organiser dashboard](docs/images/admin.jpg)
+
+Select an event to inspect its traffic and occupancy. Counts reconcile available, held, booked, and organiser-reserved seats. Sales and activity come from recorded application actions; screenshots are illustrative snapshots, not current totals.
+</details>
+
+## A presentation using all six shows
+
+| Show | Demonstration | What the audience should observe |
+| --- | --- | --- |
+| Electric Bloom | Complete successful booking | Wallet decreases once; booking and QR tickets appear |
+| Afterhours Club | VIP queue versus available Gold/Silver | Availability and admission are specific to the requested class |
+| Indie State of Mind | Two accounts compete for one seat | Exactly one account obtains the hold |
+| The Laugh Track | Sold-out event and admin release | Waiting fan is admitted after enough reserved capacity is released |
+| Velvet Nights | Auto-pick | Random seats are held together and cannot be manually changed |
+| Beyond the Script | Failed payment, retry, cancellation | Failure deducts nothing; successful cancellation refunds once |
+
+These are suggested scenarios. **All six events use the same engine.** Sold-out and full-class conditions describe the initial seed and may change as people use the demo. Prepare allocations in **Admin → Seat control** before presenting. Use separate accounts/browser profiles for concurrency; two tabs on the same account share one active session.
+
+### Suggested 5-minute demo
+
+1. Sign in with a fresh demo account and point out its randomly assigned wallet.
+2. Book one Electric Bloom seat and show that another account cannot claim it.
+3. Finish checkout; open **My tickets** and save the QR.
+4. Show Afterhours VIP waiting while another class can admit buyers.
+5. In the admin browser, release capacity for a waiting request.
+6. Upload the confirmed QR in **Gate check**; repeat it to show rejection.
+7. Finish with event graphs and the booking activity trail.
+
+### Create an event with a banner
+
+Open **Admin → Create event**, choose **Event banner template**, and review the image preview with your event title. Enter the venue, category, date, description, and starting price, then publish. The selected image is saved with the event and used on discovery cards, the event banner, booking summaries, and tickets.
+
+The six built-in themes are Electric Bloom, Afterhours, Indie, Comedy, Velvet, and Theatre. Templates reuse bundled images; arbitrary uploads and external image URLs are not part of this feature. Add another template in **lib/banners.js** and put its image under **public/images/**. The server validates template IDs against that shared list.
+
+## Architecture at a glance
+
+~~~mermaid
+flowchart LR
+    Fan[Fan browser] --> API[Next.js API on Vercel]
+    Admin[Organiser browser] --> API
+    API --> Auth[Sessions and ownership checks]
+    API --> Engine[Admission / hold / payment engine]
+    Engine --> DB[(Hosted PostgreSQL)]
+    Auth --> DB
+    API --> QR[Signed QR and atomic check-in]
+    QR --> DB
+~~~
+
+~~~mermaid
+stateDiagram-v2
+    Available --> Held: Admitted fan selects a seat
+    Held --> Booked: Successful payment before expiry
+    Held --> Available: Expiry / release / payment failure
+    Booked --> Available: Eligible cancellation and refund
+    Available --> Reserved: Organiser allocation
+    Reserved --> Available: Organiser release
+~~~
+
+A queue admission promises capacity in one class; it does not assign a physical seat. A hold assigns specific seats. A successful payment converts those held inventory rows into a confirmed booking. The database enforces the transitions across Vercel instances.
+
+## Technology
+
+| Layer | Implementation |
+| --- | --- |
+| Interface | React, Next.js App Router, custom responsive CSS, Lucide icons |
+| Charts | Recharts; recorded activity with India-time labels |
+| API | Next.js Node route handlers; validation and role checks on the server |
+| Database | PostgreSQL on Neon; SQL schema and parameterised queries |
+| Connection lifecycle | pg pool, verified TLS, Vercel attachDatabasePool, bounded timeouts |
+| Authentication | scrypt password hashes; opaque HttpOnly cookie sessions |
+| Tickets | Server-signed QR tokens; qrcode generation and jsQR image decoding |
+| Deployment | Vercel, with API and database configured near Singapore |
+
+## Repository map
+
+~~~text
+app/                 Pages, API route, global styling
+components/          Discovery, booking, account, tickets, wallet, admin UI
+lib/banners.js       Shared banner-template allowlist
+lib/catalog.js       Initial six events, classes, and stadium geometry
+lib/schema.sql       Database tables, constraints, and indexes
+lib/db.js            Inventory transaction and queue invariants
+lib/sql.js           Parameterised SQL tag and Vercel-compatible pg pool
+lib/service.js       Authentication, booking, wallet, gate, and admin API
+scripts/             Additive database setup and live smoke verification
+tests/               Shared-database integration suite
+public/images/       Bundled banner photography
+docs/images/         Demonstration screenshots for this README
+~~~
 
 ## Run locally
 
@@ -112,3 +240,37 @@ vercel --prod --scope uni-321d
 The production health endpoint is `/api/health`. A successful response reports `database: connected`. The API runs in the Singapore region near the database. Application state persists outside Vercel function instances. To separate preview data from production, connect a distinct Neon branch to preview deployments.
 
 Never commit `.env.local`, `.vercel`, or `DEMO_CREDENTIALS.md`. `npm run db:setup` is additive/idempotent and does not reset existing bookings.
+
+
+## Keep this project usable later
+
+- **After cloning:** run npm install, recreate your private .env.local, run npm run db:setup, then npm run dev. Secrets and organiser credentials are deliberately absent from GitHub.
+- **Use your own database for independent work:** pointing at the existing production database means your local bookings and admin changes affect the live site. Use an isolated Neon branch for experiments and previews.
+- **Refresh the event dates:** the sample catalogue uses fixed dates. Create future events in the admin UI for later demonstrations. Editing seed definitions does not overwrite existing records because setup is additive.
+- **Preserve the session secret:** changing SESSION_SECRET invalidates previously issued QR signatures. Coordinate any rotation with ticket reissue.
+- **Preserve organiser access:** setup creates the configured admin account if absent; it does not reset an existing password. Store credentials privately.
+- **Deploy source changes:** push GitHub changes, then deploy the linked Vercel project. A GitHub push only triggers deployment if the repository is connected to Vercel Git integration. CLI deployment remains supported.
+- **Before sharing a demo:** check /api/health, prepare the desired reserved capacity, and verify a fresh account can book.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Database is not connected | DATABASE_URL in local/Vercel environment; database availability |
+| Organiser access required | Sign out of the fan account and use organiser credentials at /login?next=/admin |
+| Still in a waiting room | Enough seats must open for the whole requested quantity in that specific class |
+| Seat hold disappeared | The five-minute deadline is server-controlled and survives refreshes |
+| Demo payment failed | Selected outcome, wallet balance, complete seat selection, hold deadline |
+| Camera unavailable | Use HTTPS, grant camera access, or upload the QR image/paste its code |
+| Graph is flat | Select the correct event; hours without recorded activity correctly show zero |
+| Seed changes are not visible | Setup preserves existing data; publish a new event rather than expecting a reset |
+
+## Scope and possible extensions
+
+Implemented: assigned-seat booking, one currency (INR), simulated funds, class-based FIFO queues, reservation expiry, basic abuse signals, QR verification, and one organiser role managing the catalogue.
+
+Future extensions could include real payment-provider reconciliation, verified ticket transfers, email delivery, custom venue layouts, adjacent-seat auto-pick, independently isolated previews, and higher-scale load testing. These are future work, not current capabilities.
+
+## Credits and project use
+
+The initial events and lineups are fictional. Event photography is sourced from Unsplash. No project-wide open-source licence has been selected; add an appropriate licence before representing the repository as freely licensed for reuse.
