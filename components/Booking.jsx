@@ -136,6 +136,8 @@ export default function Booking({ id }) {
     if (data.queue) {
       setChosen(data.queue.classId);
       setQuantity(data.queue.quantity);
+    } else if (!data.classes.some(c => c.id === chosen)) {
+      setChosen(data.classes[0]?.id || 'silver');
     }
   }, [data, notify, confirmed]);
   const perform = async (action, body = {}, label = action) => {
@@ -265,7 +267,7 @@ export default function Booking({ id }) {
         <Spinner label="Getting the venue ready" />
       </div>
     );
-  const cls = data.classes.find((c) => c.id === chosen) || data.classes[2];
+  const cls = data.classes.find((c) => c.id === chosen) || data.classes[0];
   const queue = data.queue,
     hold = data.hold,
     admitted = queue && ["admitted", "holding"].includes(queue.state),
@@ -273,7 +275,7 @@ export default function Booking({ id }) {
   const selected = hold?.seats.map((s) => s.id) || [],
     full = selected.length === quantity,
     total = selected.length * cls.price;
-  const activeClass = queue?.classId || chosen;
+  const activeClass = queue?.classId || cls.id;
   const showBooking = admitted || !!hold;
   const launchBlocked = data.launch && !data.launch.canBook;
   return (
@@ -526,7 +528,7 @@ export default function Booking({ id }) {
                     <span>{data.venue.toUpperCase()} / SEATING PLAN</span>
                     <span>
                       <Headphones size={13} />
-                      360° SOUND. ONE SHARED FEELING.
+                      {data.sectionPlan ? `${data.classes.length} SECTIONS · ${data.seats.length} SEATS` : '360° SOUND. ONE SHARED FEELING.'}
                     </span>
                   </div>
                   <svg
@@ -551,7 +553,7 @@ export default function Booking({ id }) {
                         />
                       </linearGradient>
                     </defs>
-                    <path
+                    {data.venueLayout !== 'theatre' && <><path
                       d="M 34 118 A 386 354 0 0 0 806 118"
                       fill="none"
                       stroke="#272a25"
@@ -576,7 +578,9 @@ export default function Booking({ id }) {
                       stroke="#242720"
                       strokeWidth="1"
                       strokeDasharray="3 6"
-                    />
+                    /></>}
+                    {data.venueLayout === 'theatre' && Array.from({ length: data.sectionPlan?.reduce((sum, section) => sum + section.rows, 0) || 0 }, (_, row) => <path key={row} d={`M 92 ${194 + row * 27} H 748`} stroke="#242720" strokeWidth="1" fill="none" />)}
+                    {data.venueLayout === 'stadium' && Array.from({ length: data.sectionPlan?.reduce((sum, section) => sum + section.rows, 0) || 0 }, (_, row) => <path key={row} d={`M 92 ${202 + row * 27} Q 420 ${166 + row * 27} 748 ${202 + row * 27}`} stroke="#252b25" strokeWidth="1" fill="none" />)}
                     <path
                       d="M 270 66 L570 66 L550 124 L290 124 Z"
                       fill="url(#stage-shine)"
@@ -591,6 +595,7 @@ export default function Booking({ id }) {
                     >
                       THE STAGE
                     </text>
+                    {!data.sectionPlan && <>
                     <path
                       d="M305 133 Q420 150 535 133"
                       fill="none"
@@ -639,7 +644,8 @@ export default function Booking({ id }) {
                       fill="#8fc7db"
                     >
                       GOOD VIBES
-                    </text>
+                    </text></>}
+                    {data.sectionPlan && data.classes.map((section, index) => <text key={section.id} x="38" y={229 + index * 36} className="zone-map-label" fill={section.color}>{section.label}</text>)}
                     {data.seats.map((seat) => {
                       const mine = selected.includes(seat.id),
                         available = seat.status === "available",

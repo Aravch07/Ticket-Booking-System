@@ -1,5 +1,6 @@
 "use client";
 import { bannerTemplates, resolveBanner } from '../lib/banners.js';
+import { venueLayouts, sectionTypes, defaultSections, prepareVenue } from '../lib/venue.js';
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   ResponsiveContainer,
@@ -1162,10 +1163,11 @@ function CreateEventModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
       title: "",
       artist: "",
-      venue: "",
+      venue: "Echo Arena",
+      venueLayout: 'arena',
+      sections: defaultSections.map(section => ({ ...section })),
       date: "",
       category: "Live music",
-      basePrice: 799,
       description: "",
       bannerTemplate: 'bloom',
       releaseMode: 'now',
@@ -1174,11 +1176,19 @@ function CreateEventModal({ onClose, onCreated }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const updateSection = (id, key, value) => setForm(f => ({ ...f, sections: f.sections.map(section => section.id === id ? { ...section, [key]: value } : section) }));
+  const toggleSection = type => setForm(f => ({ ...f, sections: f.sections.some(section => section.id === type.id)
+    ? f.sections.filter(section => section.id !== type.id)
+    : [...f.sections, { id: type.id, name: type.name, rows: 1, seatsPerRow: 24, price: 799 }] }));
+  let venuePreview, venueError = '';
+  try { venuePreview = prepareVenue(form.venueLayout, form.sections); }
+  catch (e) { venueError = e.message; }
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
+      if (venueError) throw new Error(venueError);
       const d = await api("/admin/events", {
         ...form,
         date: new Date(form.date).toISOString(),
@@ -1192,7 +1202,7 @@ function CreateEventModal({ onClose, onCreated }) {
     }
   };
   return (
-    <Modal title="Put a new night on the map." onClose={onClose}>
+    <Modal title="Put a new night on the map." onClose={onClose} wide>
       <form className="create-event-form" onSubmit={submit}>
         <label>
           EVENT BANNER TEMPLATE
@@ -1226,14 +1236,8 @@ function CreateEventModal({ onClose, onCreated }) {
         </label>
         <div className="form-two-col">
           <label>
-            VENUE
-            <input
-              required
-              value={form.venue}
-              onChange={(e) => update("venue", e.target.value)}
-              maxLength={80}
-              placeholder="Where’s it happening?"
-            />
+            VENUE NAME
+            <input required value={form.venue} onChange={(e) => update('venue', e.target.value)} maxLength={80} placeholder="Where’s it happening?" />
           </label>
           <label>
             CATEGORY
@@ -1259,18 +1263,38 @@ function CreateEventModal({ onClose, onCreated }) {
               onChange={(e) => update("date", e.target.value)}
             />
           </label>
-          <label>
-            SILVER STARTING PRICE (₹)
-            <input
-              type="number"
-              required
-              min={100}
-              max={25000}
-              value={form.basePrice}
-              onChange={(e) => update("basePrice", e.target.value)}
-            />
+          <label>SEATING LAYOUT
+            <select value={form.venueLayout} onChange={e => {
+              const previous = venueLayouts.find(layout => layout.id === form.venueLayout);
+              const next = venueLayouts.find(layout => layout.id === e.target.value);
+              setForm(f => ({ ...f, venueLayout: next.id, venue: !f.venue || f.venue === previous.example ? next.example : f.venue }));
+            }}>
+              {venueLayouts.map(layout => <option value={layout.id} key={layout.id}>{layout.label}</option>)}
+            </select>
           </label>
         </div>
+        <section className="venue-config">
+          <div className="venue-config-heading"><div><Eyebrow>DESIGN THE HOUSE</Eyebrow><h3>Ticket sections & seating.</h3></div><span>{venuePreview ? `${venuePreview.capacity} seats · ${venuePreview.totalRows} rows` : 'Up to 9 rows'}</span></div>
+          <p className="small-note">Choose the ticket types you want to sell. Set a name, price, rows, and seats per row for each. The map and inventory are generated from these exact numbers.</p>
+          <div className="venue-type-picker">
+            {sectionTypes.map(type => <label key={type.id} className={form.sections.some(section => section.id === type.id) ? 'active' : ''}>
+              <input type="checkbox" checked={form.sections.some(section => section.id === type.id)} onChange={() => toggleSection(type)} />
+              <i style={{ background: type.color }} />{type.label}
+            </label>)}
+          </div>
+          <div className="venue-section-list">
+            {form.sections.map(section => <div className="venue-section-row" key={section.id}>
+              <strong style={{ color: sectionTypes.find(type => type.id === section.id)?.color }}>{section.id.toUpperCase()}</strong>
+              <label>SECTION NAME<input required value={section.name} maxLength={40} onChange={e => updateSection(section.id, 'name', e.target.value)} /></label>
+              <label>ROWS<input type="number" required min={1} max={9} value={section.rows} onChange={e => updateSection(section.id, 'rows', e.target.value)} /></label>
+              <label>SEATS / ROW<input type="number" required min={8} max={40} value={section.seatsPerRow} onChange={e => updateSection(section.id, 'seatsPerRow', e.target.value)} /></label>
+              <label>PRICE (₹)<input type="number" required min={100} max={100000} value={section.price} onChange={e => updateSection(section.id, 'price', e.target.value)} /></label>
+              <span className="section-capacity">{Number(section.rows) * Number(section.seatsPerRow) || 0} seats</span>
+            </div>)}
+          </div>
+          {venueError && <p className="venue-error" role="alert">{venueError}</p>}
+          {venuePreview && <div className="venue-plan-preview"><div><span>LIVE VENUE PREVIEW</span><strong>{venuePreview.layout.label}</strong><small>{venuePreview.layout.description}</small></div><svg viewBox="0 0 840 480" aria-label="Preview of your selected seating layout" role="img"><path d="M270 35H570L550 100H290Z" fill="#d5fd7130" stroke="#d5fd71"/><text x="420" y="75" textAnchor="middle" fill="#d5fd71" fontSize="17">STAGE</text>{venuePreview.seats.map(seat => <circle key={seat.id} cx={seat.x} cy={seat.y} r="3.2" fill={sectionTypes.find(type => type.id === seat.classId).color} />)}</svg></div>}
+        </section>
         <div className="release-settings">
           <label>
             TICKET RELEASE
@@ -1296,15 +1320,13 @@ function CreateEventModal({ onClose, onCreated }) {
             maxLength={1000}
           />
         </label>
-        <p className="small-note">
-          Creates the standard three-class venue. Gold is 1.6× and VIP is 2.5×
-          the starting price. All seats begin available.
-        </p>
+        <p className="small-note">Tickets, sections and prices are locked when the event is published. All generated seats begin available.</p>
         <ErrorBox>{error}</ErrorBox>
         <Button
           className="button-primary full-width"
           type="submit"
           loading={busy}
+          disabled={!!venueError}
         >
           Publish experience
           <ArrowUpRight size={17} />

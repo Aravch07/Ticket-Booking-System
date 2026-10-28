@@ -72,7 +72,11 @@ These are suggested scenarios. **All six events use the same engine.** Sold-out 
 
 ### Create an event with a banner
 
-Open **Admin → Create event**, choose **Event banner template**, and review the image preview with your event title. Enter the venue, category, date, description, and starting price, then publish. The selected image is saved with the event and used on discovery cards, the event banner, booking summaries, and tickets.
+The event editor also lets organisers design the venue: pick an arena bowl, stadium grandstand, theatre hall, or outdoor amphitheatre; choose any combination of VIP, Gold, Silver, General, and Balcony; and set each section's display name, row count, seats per row, and price. The live preview shows the generated capacity and seating shape. A venue can have one to five sections and up to nine rows in total, with 8–40 seats per row. For example, a Gold section with 2 rows of 10 seats at ₹1,400 plus a Silver section with 1 row of 12 seats at ₹600 creates 32 bookable seats and no VIP tickets. Section inventory, prices, admission queues, and the organiser dashboard all use those saved choices. Existing published events keep their original seat maps.
+
+![Advanced event editor with Gold and Silver sections](docs/images/venue-editor.png)
+
+Open **Admin → Create event**, choose **Event banner template**, and review the image preview with your event title. Enter the venue, category, show date, section prices, and description, then publish. The selected image is saved with the event and used on discovery cards, the event banner, booking summaries, and tickets.
 
 The six built-in themes are Electric Bloom, Afterhours, Indie, Comedy, Velvet, and Theatre. Templates reuse bundled images; arbitrary uploads and external image URLs are not part of this feature. Add another template in **lib/banners.js** and put its image under **public/images/**. The server validates template IDs against that shared list.
 
