@@ -9,12 +9,13 @@ import { prepareVenue, venueLayouts } from '../lib/venue.js';
 test('custom venue sections create exact inventory, prices, and bookable tickets', async () => {
   const sql = database(); let eventId, fanId, adminToken, fanToken;
   const call = async (path, token, body) => {
-    const request = new Request('http://seatwise.test/api' + path, {
+    const request = new Request((process.env.TEST_BASE_URL || 'http://seatwise.test') + '/api' + path, {
       method: body === undefined ? 'GET' : 'POST',
       headers: { ...(token ? { cookie: 'sw_session=' + token } : {}), ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    const res = await dispatch(request); return { status: res.status, data: await res.json() };
+    const res = process.env.TEST_BASE_URL ? await fetch(request) : await dispatch(request);
+    return { status: res.status, data: await res.json() };
   };
   try {
     const sections = [
